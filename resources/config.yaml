@@ -2,5 +2,5 @@ Server:
   port: 9999
   shutdownPort: 8999
   shutdownCommand: SHUTDOWN
-  docRoot : /Users/helloworld/PycharmProjects/python-http-server/resources/webapp/
+  docRoot : /Users/devsh/PycharmProjects/python-http-server/resources/webapp/
 

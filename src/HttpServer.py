@@ -2,46 +2,59 @@ import time
 
 from src.utils import YamlParser
 from src.utils import banner
-from src.http import ResponseProcessor
 
-import http.server
-from http.server import BaseHTTPRequestHandler
 from http.server import HTTPServer
+import socketserver
+import threading
 
-from urllib.parse import urlparse
+from src.http import HttpServerHandler
+from src.http import ShutdownHandler
+
+from src.exception import ShutdownException
+import sys
+
+class HttpServerRunner(threading.Thread):
+    def run(self):
+        server_config = YamlParser.get("Server")
+
+        bind_port = server_config['port']
+
+        try:
+            # initialized Http Handler
+            server = HTTPServer(('', bind_port), HttpServerHandler.HttpServerHandler)
+            print(time.asctime(), "Server Starts")
+
+            banner.print_banner()
+            server.serve_forever()
+        except Exception as err:
+            print(err)
+
+            print(time.asctime(), "Server Stops")
 
 
-class HttpServerHandler(BaseHTTPRequestHandler):
-    def do_GET(self):
-        # Send response status code
-        self.send_response(200)
+class ShutdownRunner(threading.Thread):
+    def run(self):
+        server_config = YamlParser.get("Server")
 
-        # Send headers
-        self.send_header('Content-type', 'text/html')
-        self.end_headers()
+        bind_port = server_config['shutdownPort']
+        shutdown_server = None
+        try:
+            # initialized Shutdown Handler
+            shutdown_server = socketserver.TCPServer(('', bind_port), ShutdownHandler.ShutdownHandler)
+            print(time.asctime(), "Listening Shutdown.")
 
-        server = YamlParser.get("Server")
-        docRoot = server['docRoot']
+            shutdown_server.serve_forever()
 
-        ResponseProcessor.send(self.wfile, docRoot, self.path)
+        except ShutdownException.ShutdownException as err :
+            sys.exit()
+        except Exception as err:
+            print(err)
 
-        return
+            print(time.asctime(), "Server Stops")
 
 
 if __name__ == "__main__":
-
-    server = YamlParser.get("Server")
-
-    bindPort = server['port']
-    server = None
-    try:
-        server = HTTPServer(('', bindPort), HttpServerHandler)
-        print(time.asctime(), "Server Starts")
-
-        banner.print_banner()
-
-        server.serve_forever()
-    except Exception as err:
-        print(err)
-
-        print(time.asctime(), "Server Stops")
+    httpServerRunner = HttpServerRunner()
+    shutdownRunner = ShutdownRunner()
+    httpServerRunner.start()
+    shutdownRunner.start()
